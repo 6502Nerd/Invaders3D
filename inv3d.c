@@ -66,7 +66,7 @@ unsigned char aliensLeft;
 unsigned char lives;
 unsigned char level;
 unsigned char *dataPtr;
-unsigned char musicOn=0;
+unsigned char musicOn=1;
 
 void processSprite(unsigned char *spr) {
     unsigned char w,h,s;
