@@ -818,15 +818,15 @@ drawBullet
 ;
 ; Check bullet for hit with each alien
 checkBulletHit
-    lda _state
-    cmp #statePlayGame
-    bne bulletInactive
     lda #0
     sta alienIdx
 checkAlienHit
     ldx alienIdx
     ldy _bulletY+1
     beq skipBulletHit
+    lda _state
+    cmp #statePlayGame
+    bne skipBulletHit
     ldy alienY+1,x
     beq skipBulletHit
     lda lastAlienFrame,x

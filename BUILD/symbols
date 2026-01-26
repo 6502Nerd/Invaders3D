@@ -542,7 +542,7 @@
 5f8e initBulletPos
 5fc3 bulletInactive
 60d9 calcBulletFrame
-5fe4 checkAlienHit
+5fdd checkAlienHit
 6057 skipBulletHit
 6015 doBulletHit
 6095 clearBullet
