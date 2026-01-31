@@ -11,6 +11,7 @@ extern void loopLand();
 extern void initLand();
 extern void initBarLookUp();
 extern void invertPaper(unsigned char);
+extern void drawDeathStar(unsigned char, unsigned char, unsigned char);
 
 extern unsigned char sprite_data[], udg_data[];
 extern unsigned char oxygene4[], level_tune[];
@@ -30,15 +31,15 @@ char systemName[9][20] = {
 };
 
 unsigned char landColour[9][2] = {
-    {16+3,16+2},
-    {16+4,16+3},
-    {16+5,16+4},
+    {16+6,16+2},
+    {16+6,16+3},
     {16+6,16+5},
-    {16+1,16+6},
-    {16+2,16+4},
-    {16+3,16+5},
-    {16+4,16+6},
-    {16+5,16+1}
+    {16+5,16+2},
+    {16+5,16+3},
+    {16+5,16+1},
+    {16+3,16+2},
+    {16+3,16+6},
+    {16+3,16+1}
 };
 
 unsigned int sprTable[40];
@@ -272,17 +273,12 @@ void doInstructions() {
 
 
 void drawScreen(char l, char s) {
-    int cx,cy,ax,bx,col;
-    int tx,ty;
-    int j;
+    int col;
+    int i,j,k;
+    unsigned int t;
     unsigned char *scrnPtr;
 
     if(s) pt3_mod(level_tune,0);
-
-    cx=rand()%(240-100-20)+62;
-    cy=rand()%(horizon-40)+60;
-    ax=cx-56;
-    bx=cx+56;
 
     // Rolling landscape
     startOffset=0;
@@ -303,39 +299,17 @@ void drawScreen(char l, char s) {
 
     // Moon ink colour
     col=l%7+1;
-    tx=ax/6; ty=bx/6;
-    scrnPtr=(unsigned char*)(0xa000+40*(cy-50));
-    for(j=cy-50;j<horizon;j++) {
-        scrnPtr[tx]=col;
-        scrnPtr[ty]=7;
-        scrnPtr+=40;
-    }
 
-    // Below horizon ink = same as background
-    scrnPtr=(unsigned char*)(0xa000+40*horizon);
-    for(j=horizon;j<199;j++) {
-        scrnPtr[1]=scrnPtr[0]&7;
-        scrnPtr+=40;
-    }
-
-    // Draw moon
-    curset(cx,cy,1);
-    for(j=1;j<50;j++) {
-        circle(j,1);
-    }
-
-    // Draw moon crater
-    for(j=1;j<18;j+=2) {
-        tx=(cx+15)-(18-j)/3;
-        ty=(cy-25)+(18-j)/3;
-        curset(tx,ty,0);        
-        circle(j,0);
-    }
-
-    // Erase moon pixels below horizon
-    for(j=horizon; j<(cy+50); j++) {
-        curset(cx-50,j,0);
-        draw(100,0,0);
+    // Top position of moon
+    j=rand()%(horizon-50)+5;
+    // X position of moon
+    k=rand()%20+2;
+    // Scroll the death star up from horizon
+    for(i=horizon-1;i>=j;i--) {
+        gr_resetTimer(&t);
+        drawDeathStar(col,k,i);
+        initLand();
+        while(gr_elapsed(t)<4);
     }
 
     if(s) pt3_mute();
@@ -574,6 +548,7 @@ void main() {
     kb_stat=0;              // Default to keyboard mode
     pt3_init();
     game_boot();
+
     while(1) {
         switch(state) {
             case stateInstruct: doInstructions(); break;

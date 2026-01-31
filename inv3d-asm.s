@@ -31,6 +31,8 @@
 #define leftMargin      10
 #define rightMargin     210
 
+#define TIMER2L       $300+8
+#define TIMER2H       $300+9
 
 ;
 ; Hires bit mask to bit position look up
@@ -239,7 +241,7 @@ initAlien
     dex
     bpl initAlien
     lda _alien2Delay
-   adc #10
+    adc #10
     sta alien2DelayCount
  ; Alien speed based on level
     lda _alienLevelSpeed
@@ -347,9 +349,9 @@ explodeSkip
 ; Initialise Timer 2
 initT2
     lda #$4009&255
-    sta $300+8
+    sta TIMER2L
     lda #$4009>>8
-    sta $300+9
+    sta TIMER2H
     rts
 ;
 ; Wait for T2 timeout and re-start
@@ -1059,7 +1061,7 @@ noSpawn
     rts
 ;
 restartAlien
-    lda IRQCounter            ; LSB of interrupt timer
+    lda TIMER2L            ; LSB of Timer 2
     and #63
     clc
     adc #(120-32)
@@ -1149,4 +1151,80 @@ calcSpriteFrame
     lsr
     lsr
     lsr                     ;						/8
+    rts
+
+; Show deathstar
+; C callable interface for showDeathStar(colour, x, y)
+; where colour = colour of the death star
+; x = X coord in characters (1-31)
+; y = target y coord (between 0 and horizon)
+deathstarColour .byt 0
+deathStarXCoord .byt 0
+deathStarYCoord .byt 0
+_drawDeathStar
+	ldy #0							; Get colour
+	lda (sp),y
+    sta deathstarColour
+	ldy #2							; Get X coord
+	lda (sp),y
+	sta deathStarXCoord
+    ldy #4							; Get Y coord
+	lda (sp),y
+    tay
+    sta deathStarYCoord
+    tay
+    ;
+    clc
+    lda hiresAddrLow,y
+    adc deathStarXCoord
+    sta deathStarDest+1
+    sta deathStarSrcCol+1
+    sta deathStarWhiteCol+1
+    lda hiresAddrHigh,y
+    adc #0
+    sta deathStarDest+2
+    sta deathStarSrcCol+2
+    sta deathStarWhiteCol+2
+    ;
+    lda #<(_deathStarPic-1)
+    sta deathStarSrc+1
+    lda #>(_deathStarPic-1)
+    sta deathStarSrc+2
+    ldx deathStarYCoord 
+doDeathStarLine
+    lda deathstarColour
+deathStarSrcCol
+    sta $1234:; Self modifying code
+    ldy #18
+    lda #07     ; White ink for stars
+deathStarWhiteCol
+    sta $1234,y:; Self modifying code
+    dey     ; Now draw the bitmap line
+deathStarSrc
+    lda $1234,y:; Self modifying code
+deathStarDest
+    sta $1234,y:; Self modifying code
+    dey
+    bne deathStarSrc
+    clc
+    lda deathStarSrc+1
+    adc #17
+    sta deathStarSrc+1
+    lda deathStarSrc+2
+    adc #0
+    sta deathStarSrc+2
+    clc
+    lda deathStarDest+1
+    adc #40
+    sta deathStarDest+1
+    sta deathStarSrcCol+1
+    sta deathStarWhiteCol+1
+    lda deathStarDest+2
+    adc #0
+    sta deathStarDest+2
+    sta deathStarSrcCol+2
+    sta deathStarWhiteCol+2
+    inx
+    cpx #horizon
+    bne doDeathStarLine
     rts
