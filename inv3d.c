@@ -3,6 +3,8 @@
 #include "pt3_lib.h"
 #include "dflat_lib.h"
 
+#define JOYSTICK 0
+
 extern unsigned int xPos,yPos,xStep,yStep,friction;
 extern unsigned int bulletX,bulletY,dx,dy;
 extern unsigned char alienLevelSpeed, spriteMask, alien2Delay;
@@ -36,10 +38,10 @@ unsigned char landColour[9][2] = {
     {16+6,16+5},
     {16+5,16+2},
     {16+5,16+3},
-    {16+5,16+1},
+    {16+5,16+6},
     {16+3,16+2},
-    {16+3,16+6},
-    {16+3,16+1}
+    {16+3,16+5},
+    {16+3,16+6}
 };
 
 unsigned int sprTable[40];
@@ -54,8 +56,8 @@ unsigned int sprBullet5[3*2*3+10], sprBullet6[3*1*3+10];
 char d[50],t[50];
 
 unsigned char soundfx=1;
-int hiScore;
-int score;
+unsigned int hiScore;
+unsigned int score;
 unsigned char state;
 unsigned char startOffset;
 unsigned char startColour;
@@ -68,6 +70,7 @@ unsigned char lives;
 unsigned char level;
 unsigned char *dataPtr;
 unsigned char musicOn=1;
+unsigned char ds_x,ds_y,ds_col;
 
 void processSprite(unsigned char *spr) {
     unsigned char w,h,s;
@@ -267,7 +270,6 @@ void doInstructions() {
     do; while(!kb_stick());
 //    pt3_mute();
     srandom(timer);
-    hires();
     state=stateAttract;
 }
 
@@ -298,18 +300,18 @@ void drawScreen(char l, char s) {
         curset(rand()%228+6,rand()%(horizon-5),1);
 
     // Moon ink colour
-    col=l%7+1;
-
+    ds_col=l%7+1;
     // Top position of moon
-    j=rand()%(horizon-50)+5;
+    ds_y=rand()%(horizon-50)+5;
     // X position of moon
-    k=rand()%20+2;
+    ds_x=rand()%20+2;
+
     // Scroll the death star up from horizon
-    for(i=horizon-1;i>=j;i--) {
+    for(i=horizon-1;i>=ds_y;i--) {
         gr_resetTimer(&t);
-        drawDeathStar(col,k,i);
+        drawDeathStar(ds_col,ds_x,i);
         initLand();
-        while(gr_elapsed(t)<4);
+        while(gr_elapsed(t)<3);
     }
 
     if(s) pt3_mute();
@@ -347,11 +349,13 @@ void drawPanel() {
 }
 
 void show_jkm_txt() {
-//    if(!kb_stat)
-//        gr_hplot(108,185,"^^^^^^^^           ");
-//    else
-//        gr_hplot(108,185,"           ^^^^^^^^");
-    if(musicOn)
+#if JOYSTICK
+    if(!kb_stat)
+        gr_hplot(108,185,"^^^^^^^^           ");
+    else
+        gr_hplot(108,185,"           ^^^^^^^^");
+#endif
+        if(musicOn)
         gr_hplot(144,165,"ON ");
     else
         gr_hplot(144,165,"OFF");
@@ -390,7 +394,9 @@ void attract() {
     gr_hplot(24,145,"SPACE/Fire : Begin defence!");
     gr_hplot(24,155,"UP         : Instructions");
     gr_hplot(24,165,"M          : Music");
-//    gr_hplot(24,175,"K/J        : [KEYBOARD] [JOYSTICK]");
+#if JOYSTICK
+    gr_hplot(24,175,"K/J        : [KEYBOARD] [JOYSTICK]");
+#endif
     show_jkm_txt(kb_stat);
     gr_resetTimer(&timer);
     do {
@@ -399,11 +405,13 @@ void attract() {
             gr_pixmode(0);
             show_jkm_txt();
             gr_pixmode(1);
-  //          if(k=='K')
-  //             kb_stat=0;
-  //          if(k=='J')
-  //              kb_stat = 0x20;
-            if(k=='M') {
+#if JOYSTICK
+            if(k=='K')
+               kb_stat=0;
+            if(k=='J')
+                kb_stat = 0x20;
+#endif
+                if(k=='M') {
                 musicOn ^= 1;
                 if(musicOn)
                     pt3_unmute();
@@ -480,9 +488,9 @@ void playGame() {
     altColour=landColour[level][1];
     colourFlip=0;
 
-    xStep=64; yStep=64; friction=16;
+    xStep=96; yStep=96; friction=48;
     bulletY=0;
-    alienLevelSpeed=9-level;
+    alienLevelSpeed=10-level;
     aliensLeft=10;
     hires(); poke(0x26A, 10);
     textScreenColour(0,4);
@@ -498,7 +506,7 @@ void playGame() {
         dx=0; dy=0;
         spriteMask=0xff;
         drawSprite(0,xPos>>8, yPos>>8);
-        alien2Delay=(10-level)+2;
+        alien2Delay=8;
 //        pt3_mod(oxygene4,0);
         loopLand(0,0,0);
 //        pt3_mute();
@@ -511,6 +519,8 @@ void playGame() {
 }
 
 void nextLevel() {
+    unsigned int i,t;
+
     sound(1,400,0); sound(2,401,0); sound(3,402,0);
     play(7,0,0,6000);
     cls();
@@ -523,10 +533,16 @@ void nextLevel() {
     } else {
         gr_tplot(2,1,"      BUT THEY HAVE RE-GROUPED!      ");
     }
-    wait(150);
     gr_tplot(1,2,(char*)0);
     gr_tplot(2,2,"** The galaxy is depending on you ** ");
-    wait(250);
+    // Scroll the death down into horizon
+    for(i=ds_y;i<horizon;i++) {
+        gr_resetTimer(&t);
+        drawDeathStar(ds_col,ds_x,i);
+        initLand();
+        while(gr_elapsed(t)<3);
+    }
+    wait(100);
     state=statePlayGame;
 }
 

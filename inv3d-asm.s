@@ -3,6 +3,8 @@
 #define TEXTCHAR $b400
 #define HIRESCHAR $9800
 
+#define PLAYERMAXSPEED  5
+#define MAXALIENS       (4*2)
 #define stateAttract    0
 #define stateInitGame   1
 #define statePlayGame   2
@@ -31,9 +33,10 @@
 #define leftMargin      10
 #define rightMargin     210
 
-#define TIMER2L       $300+8
-#define TIMER2H       $300+9
-
+#define TIMER2L         $300+8
+#define TIMER2H         $300+9
+#define VIAIFR          $300+13
+#define TIMER1L         $300+11
 ;
 ; Hires bit mask to bit position look up
 ; 1=pos 5*2+7, 2=pos 4*2+7, 4=pos 3*2+7
@@ -72,15 +75,15 @@ alienIdx            .byt 0
 _alien2Delay        .byt 0
 alien2DelayCount    .byt 0
 alienExploding      .byt 0
-alienDX             .word 0,0,0
-alienDY             .word 0,0,0
-alienX              .word 0,0,0
-alienY              .word 0,0,0
-lastAlienFrame      .word 0,0,0
-explodeX            .word 0,0,0
-explodeY            .word 0,0,0
-explodeVol          .word 0,0,0
-explodeFrame        .word 0,0,0
+alienDX             .word 0,0,0,0
+alienDY             .word 0,0,0,0
+alienX              .word 0,0,0,0
+alienY              .word 0,0,0,0
+lastAlienFrame      .word 0,0,0,0
+explodeX            .word 0,0,0,0
+explodeY            .word 0,0,0,0
+explodeVol          .word 0,0,0,0
+explodeFrame        .word 0,0,0,0
 _xPos               .word 0
 _yPos               .word 0
 _dx                 .word 0
@@ -95,6 +98,7 @@ _bulletY            .word 0
 bulletDX            .word 0
 bulletDY            .word 0
 lastBulletFrame     .word 0
+gameCounter         .byt 0
 
 _initBarLookUp
     ldy #0
@@ -233,7 +237,7 @@ initLoop
     sta alienIdx
     sta _bulletY+1
     sta alienExploding
-    ldx #4
+    ldx #MAXALIENS-2
 initAlien
     sta explodeVol,x
     sta alienY+1,x
@@ -247,13 +251,13 @@ initAlien
     lda _alienLevelSpeed
     sta alienSpeed
     sta alienSpeedCount
- ; Score tick is 20*(level+1) in BCD
+ ; Score tick is 15*(level+1) in BCD
     sed
     clc
     lda #0
     sta scoreTick
     sta scoreTick+1
-    ldx #20
+    ldx #15
 mult_tick
     sec
     lda scoreTick
@@ -290,10 +294,11 @@ gameLoop
  ; Erase aliens and bullets from screen
     lda #$40
     jsr drawBullet
-    ldx #4
+    ldx #MAXALIENS-2
     stx alienIdx
-eraseAliens
     lda #$40
+    sta _spriteMask
+eraseAliens
     jsr drawAlien
     dec alienIdx
     dec alienIdx
@@ -348,17 +353,27 @@ explodeSkip
 ;
 ; Initialise Timer 2
 initT2
-    lda #$4009&255
-    sta TIMER2L
-    lda #$4009>>8
-    sta TIMER2H
+    lda TIMER1L
+    lda IRQCounter
+    sta gameCounter
+;    lda #$4009&255
+;    sta TIMER2L
+;    lda #$4009>>8
+;    sta TIMER2H
     rts
 ;
 ; Wait for T2 timeout and re-start
 timeoutT2
-    lda $300+13
-    and #$20
+    lda IRQCounter
+    cmp gameCounter
+;    lda VIAIFR
+;    and #$20
     beq timeoutT2
+    jsr initT2
+timeoutT2_2
+    lda IRQCounter
+    cmp gameCounter
+    beq timeoutT2_2
     jmp initT2
 
 ; C callable interface for drawSprite(sprNum, X, Y)
@@ -624,7 +639,7 @@ playerUpdate
     beq skipLeft
   ; Do left dx only if not -2
     lda _dx+1
-    cmp #-3&$ff
+    cmp #(-1-PLAYERMAXSPEED)&$ff
     beq dxLowerLimit
     sec
     lda _dx
@@ -633,10 +648,10 @@ playerUpdate
     lda _dx+1
     sbc _xStep+1
     bpl limitMinusDX
-    cmp #-3&$ff
+    cmp #(-1-PLAYERMAXSPEED)&$ff
     bcs limitMinusDX
 dxLowerLimit
-    lda #-3&$ff
+    lda #(-1-PLAYERMAXSPEED)&$ff
     ldy #$80
 limitMinusDX
     sta _dx+1
@@ -648,7 +663,7 @@ skipLeft
     beq skipRight
   ; Do right dx only if not 2
     lda _dx+1
-    cmp #2
+    cmp #PLAYERMAXSPEED
     beq dxUpperLimit
     clc
     lda _dx
@@ -657,10 +672,10 @@ skipLeft
     lda _dx+1
     adc _xStep+1
     bmi limitPlusDX
-    cmp #3
+    cmp #PLAYERMAXSPEED
     bcc limitPlusDX
 dxUpperLimit
-    lda #2
+    lda #PLAYERMAXSPEED
     ldy #$80
 limitPlusDX
     sta _dx+1
@@ -880,7 +895,7 @@ skipBulletHit
     inx
     inx
     stx alienIdx
-    cpx #6
+    cpx #MAXALIENS
     beq allBulletsDone
     jmp checkAlienHit
 allBulletsDone
@@ -982,9 +997,8 @@ initAlienPos
     sta alienY+1,x              ; Y is at horizon use MSB
     rts
 ;
-; Draw alien based on mask in A. If y=0 then do nothing
+; Draw alien based on mask in sprintMask. If y=0 then do nothing
 drawAlien
-    sta _spriteMask
     ldx alienIdx
     ldy alienY+1,x:beq alienInactive
     lda alienX+1,x:sta drawAlienTmp
@@ -1013,7 +1027,7 @@ alienUpdate
 skipAlien2Dec
     lda #$40
     jsr drawAllAliens
-    lda #4
+    lda #MAXALIENS-2
     sta alienIdx
 move1Alien
     jsr moveAlienDown
@@ -1028,23 +1042,17 @@ skipAlienMove
 ;
 ; A=sprite mask
 drawAllAliens
-    pha
+    sta _spriteMask
     lda #0
     sta alienIdx
-    pla
-    pha
+draw1Alien
     jsr drawAlien
-    lda #2
-    sta alienIdx
-    pla
-    pha
-    jsr drawAlien
-    lda #4
-    sta alienIdx
-    pla
-    pha
-    jsr drawAlien
-    pla
+    ldx alienIdx
+    inx
+    inx
+    stx alienIdx
+    cpx #MAXALIENS
+    bne draw1Alien
     rts
 ;
 spawnAlien
@@ -1055,7 +1063,7 @@ spawnAlien
     bne noSpawn
 doSpawn
     ldy _alien2Delay
-   sty alien2DelayCount
+    sty alien2DelayCount
     jmp restartAlien
 noSpawn
     rts
@@ -1068,6 +1076,7 @@ restartAlien
     tax
     jsr initAlienPos
     lda #$ff
+    sta _spriteMask
     jmp drawAlien  
 ;
 ; Move alien by Y rows down, adjusting X position

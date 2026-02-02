@@ -559,20 +559,20 @@ gr_point_done
 ;* As found in the datasheets
 -PRB			= $00
 -PRA			= $01
--DDRB		= $02
--DDRA		= $03
--T1CL		= $04
--T1CH		= $05
--T1LL		= $06
--T1LH		= $07
--T2CL		= $08
--T2CH		= $09
--SR			= $0a
+-DDRB			= $02
+-DDRA			= $03
+-T1CL			= $04
+-T1CH			= $05
+-T1LL			= $06
+-T1LH			= $07
+-T2CL			= $08
+-T2CH			= $09
+-SR				= $0a
 -ACR			= $0b
 -PCR			= $0c
 -IFR			= $0d
 -IER			= $0e
--PRAH		= $0f
+-PRAH			= $0f
 
 -IFR_CA2		= $01
 -IFR_CA1		= $02
@@ -773,11 +773,15 @@ snd_set_reg
 ;** For C programs to set registers **
 ;** X = Reg, A = Value **
 sndset
+	php
+	sei
 	pha
 	txa
 	jsr snd_sel_reg
 	pla
-	jmp snd_set_reg
+	jsr snd_set_reg
+	plp
+	rts
 
 kb_stick_mask
 	.byt %11011111		; Left 	= Bit 0
