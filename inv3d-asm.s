@@ -56,7 +56,7 @@ barLookUp
 msgSpeed    .byt 6
 msgCount    .byt 0
 msgIdx      .byt 0
-msg         .byt "Galaxy Defender 3023, written in C using Oric Software develo"
+msg         .byt "Galaxy Defender 3026, written in C using Oric Software develo"
             .byt "pment kit (OSDK). Hello to all Oric fans! By @6502Nerd :-)   ",0
 ;
 ; Game Variables
